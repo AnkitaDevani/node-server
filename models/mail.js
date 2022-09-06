@@ -8,7 +8,7 @@ let transporter = nodemailer.createTransport({
         // host: "smtp12.gmail.com",
         // port: 465,
         // secure: true,
-        service: 'gmail',
+        service: 'gmail11',
         auth: {
             user: 'abc@gmail.com', // generated ethereal user
             pass: '1234', // generated ethereal password
