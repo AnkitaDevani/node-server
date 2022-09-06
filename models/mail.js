@@ -5,7 +5,7 @@ let connection = new SMTPConnection();*/
 
 let testAccount =  nodemailer.createTestAccount();
 let transporter = nodemailer.createTransport({
-        // host: "smtp.gmail.com",
+        // host: "smtp12.gmail.com",
         // port: 465,
         // secure: true,
         service: 'gmail',
