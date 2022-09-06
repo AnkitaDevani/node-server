@@ -5,10 +5,10 @@ let connection = new SMTPConnection();*/
 
 let testAccount =  nodemailer.createTestAccount();
 let transporter = nodemailer.createTransport({
-        // host: "smtp12.gmail.com",
+        // host: "smtp.gmail.com",
         // port: 465,
         // secure: true,
-        service: 'gmail11',
+        service: 'gmail',
         auth: {
             user: 'abc@gmail.com', // generated ethereal user
             pass: '1234', // generated ethereal password
