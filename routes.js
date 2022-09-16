@@ -6,14 +6,13 @@ const SubjectList = require("./models/subjectList");
 const cors = require("cors");
 const LoginUser = require("./models/isLogIn");
 const bcrypt = require("bcrypt");
-const Cryptr = require('crypto');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 const router = express();
 const transporter = require('./models/mail');
 const uploads = require('./models/image');
-const fs = require('fs');
-
+const mongoose = require('mongoose');
+const nodemailer = require("nodemailer");
 
 router.use(cors());
 
@@ -115,7 +114,7 @@ router.post('/submit', async (req, res) => {
             email: email.toLowerCase(),
             password:  encryptPass,
             gender:  gender,
-            course:  course,
+            course:  new mongoose.Types.ObjectId(course),
             profile:profile,
             role:role
         });
@@ -201,40 +200,73 @@ router.post('/loginuser', async (req, res) => {
     try{
         console.log(req.body);
         const { email, password } = req.body;
-        if (!(email && password)) {
-           return res.status(400).send("All input is required");
-        }
-        const user = await Users.findOne({ email });
-        console.log(user);
-        const isValid = await bcrypt.compare(password, user.password);
-        console.log(isValid);
-        if (user && isValid) {
-            // Create token
-            const token = jwt.sign(
-                { user_id: user._id, email, name: `${user.fname} ${user.lname}`, role: `${user.role}` },
-                process.env.TOKEN_KEY,
-                {
-                    expiresIn: "2h",
-                }
-            );
-            user.token = token;
+        if(req.body.googleId){
+            const user = await Users.findOne({ email });
             console.log(user);
-            console.log(token);
-            const login = new LoginUser({
-                email,
-                password,
-                token
-            });
 
-            login.save().then(dataRes => {
-                console.log(dataRes);
-                user.password = "";
-                res.status(200).json(user);
-            }).catch(e => {
-                res.status(400).json({
-                    message: e.errors
+            if(user) {
+                const token = jwt.sign(
+                    {user_id: user._id, email, name: `${user.fname} ${user.lname}`, role: `${user.role}`},
+                    process.env.TOKEN_KEY,
+                    {
+                        expiresIn: "2h",
+                    }
+                );
+                user.token = token;
+                console.log(user);
+                console.log(token);
+                const login = new LoginUser({
+                    email,
+                    password,
+                    token
                 });
-            });
+
+                login.save().then(dataRes => {
+                    console.log(dataRes);
+                    user.password = "";
+                    res.status(200).json(user);
+                }).catch(e => {
+                    res.status(400).json({
+                        message: e.errors
+                    });
+                });
+            }
+        }else if(req.body.email){
+            if (!(email && password)) {
+               return res.status(400).send("All input is required");
+            }
+            const user = await Users.findOne({ email });
+            console.log(user);
+            const isValid = await bcrypt.compare(password, user.password);
+            console.log(isValid);
+            if (user && isValid) {
+                // Create token
+                const token = jwt.sign(
+                    {user_id: user._id, email, name: `${user.fname} ${user.lname}`, role: `${user.role}`},
+                    process.env.TOKEN_KEY,
+                    {
+                        expiresIn: "2h",
+                    }
+                );
+                user.token = token;
+                console.log(user);
+                console.log(token);
+                const login = new LoginUser({
+                    email,
+                    password,
+                    token
+                });
+
+                login.save().then(dataRes => {
+                    console.log(dataRes);
+                    user.password = "";
+                    res.status(200).json(user);
+                }).catch(e => {
+                    res.status(400).json({
+                        message: e.errors
+                    });
+                });
+        }
         }else{
             return res.status(400).json({
                 message: "Email or password not valid"
@@ -325,9 +357,24 @@ function verifyToken(req,res,next) {
 router.post('/mail', async (req, res) => {
     try{
         // Step 2
+        const {email} = req.body ;
+        let transporter = nodemailer.createTransport({
+            /*host: "mail.travesymedia.com",
+            port: 587,
+            secure: false,*/
+            service: 'gmail',
+            auth: {
+                user: 'ankitabhuva.bvminfotech@gmail.com', // generated ethereal user
+                pass: 'bvm@12345', // generated ethereal password
+            },
+            tls: {
+                rejectUnauthorized : false
+            }
+        });
+
         let mailOptions = {
-            from: 'abc@gmail.com', // sender address
-            to: "ankiabhuva12@gmail.com", // list of receivers
+            from: 'ankitabhuva.bvminfotech@gmail.com', // sender address
+            to: email, // list of receivers
             subject: "Hello ✔", // Subject line
             text: "Hello world?", // plain text body
             //html: "<b>Hello world?</b>", // html body
@@ -435,6 +482,69 @@ router.delete('/subdelete/:sub', (req, res) => {
     } catch(e) {
         res.status(400).json({
             message: "Something went wrong"
+        });
+    }
+});
+
+router.get('/userDetails', async (req, res) => {
+    try {
+        const data = await Users.aggregate([{
+            $lookup: {
+                from: "subjectlists",
+                localField: "course",
+                foreignField: "_id",
+                as: "course_name"
+            }}]);
+
+        res.status(200).json(data);
+    } catch(error){
+        console.log(error);
+        res.status(400).json({
+            message: error
+        });
+    }
+});
+
+router.get('/useraddDetial', async (req, res) => {
+    try {
+        const findbyVal = await Users.aggregate([{ $match: { fname: "Vinit"}}]);
+        for await (const doc of findbyVal) {
+            console.log(doc.fname);
+        }
+
+        const addField = await Users.aggregate( [
+            {
+                $addFields: {
+                    totalHobbies: ("$hobbies") ,
+                }
+            }
+        ] );
+
+          const conditionAgg = await Users.aggregate( [
+              {
+                  $project:
+                      {
+                          item: 1,
+                          discount:
+                              {
+                                  $cond: { if:  { $eq: [ "$gender", "Male" ] }, then: 30, else:  20 }
+                              }
+                      }
+              },
+          ] );
+
+          const filterByVal = await Users.find({ hobbies: { $in: [ "Travelling","Dancing" ] } }, { _id: 0 });
+
+        const sortByVal = await Users.aggregate([
+            { $sort : { fname : -1 } }
+        ]);
+
+        const sortByCount = await Users.aggregate([ { $unwind: "$hobbies" },  { $sortByCount: "$hobbies" } ]);
+        res.status(200).json(sortByCount);
+    } catch(error){
+        console.log(error);
+        res.status(400).json({
+            message: error
         });
     }
 });

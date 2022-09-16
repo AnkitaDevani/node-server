@@ -1,4 +1,6 @@
 const mongoose = require('mongoose');
+var Schema = mongoose.Schema;
+   var  ObjectId = Schema.ObjectId;
 
 const userSchema = new mongoose.Schema({
 
@@ -28,7 +30,7 @@ const userSchema = new mongoose.Schema({
     },
     course:  {
         required: false,
-        type: String
+        type: ObjectId
     },
     profile:  {
         required: false,
